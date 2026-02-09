@@ -6,3 +6,5 @@ cryptography
 python-multipart
 # websockets is included in fastapi/uvicorn usually but good to have if needed explicitly, 
 # though fastapi handles it. python-multipart is needed for Form data / UploadFile.
+
+psutil

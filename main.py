@@ -9,6 +9,7 @@ import hashlib
 import secrets
 import logging
 import sys
+import psutil
 from datetime import datetime, timedelta
 from typing import Dict, List, Set, Optional
 from collections import defaultdict
@@ -194,6 +195,71 @@ class ChatLogger:
     def typing_indicator(cls, username, is_typing):
         if is_typing:
             cls._print("⌨️", f"{username} is typing...", 'cyan')
+
+
+# === SYSTEM MONITORING ===
+class HardwareMonitor:
+    def __init__(self, log_interval=60):
+        self.log_interval = log_interval
+        self.running = False
+        self._last_net_io = psutil.net_io_counters()
+
+    async def start(self):
+        self.running = True
+        asyncio.create_task(self._monitor_loop())
+        log.info("System monitoring started (Stats in window title)")
+
+    async def _monitor_loop(self):
+        while self.running:
+            try:
+                # 1. Get Stats
+                cpu_percent = psutil.cpu_percent(interval=None)
+                ram = psutil.virtual_memory()
+                
+                # Network Speed Calculation
+                current_net_io = psutil.net_io_counters()
+                bytes_sent = current_net_io.bytes_sent - self._last_net_io.bytes_sent
+                bytes_recv = current_net_io.bytes_recv - self._last_net_io.bytes_recv
+                self._last_net_io = current_net_io
+                
+                # Format Network Speed
+                upload_speed = self._format_bytes(bytes_sent)
+                download_speed = self._format_bytes(bytes_recv)
+
+                # 2. Update Console Title (Real-time view)
+                if sys.platform == 'win32':
+                    title = f"Local-LAN-Messenger | CPU: {cpu_percent}% | RAM: {ram.percent}% | Net: ↓{download_speed}/s ↑{upload_speed}/s"
+                    ctypes.windll.kernel32.SetConsoleTitleW(title)
+                else:
+                    # macOS / Linux / Unix - Use ANSI Escape Sequence
+                    title = f"Local-LAN-Messenger | CPU: {cpu_percent}% | RAM: {ram.percent}% | Net: ↓{download_speed}/s ↑{upload_speed}/s"
+                    sys.stdout.write(f"\x1b]2;{title}\x07")
+                    sys.stdout.flush()
+
+                # 3. Periodic Logging (Every log_interval seconds)
+                # We use a simple counter or checking timestamp usually, 
+                # but here we just sleep 1s. So we log every Nth iteration.
+                # To keep it simple, let's just use a separate task or check time.
+                # For now, let's just log if second % 60 == 0 roughly
+                now = datetime.now()
+                if now.second == 0:  # Log once a minute
+                   log._print("📊", f"System Load: CPU {cpu_percent}% | RAM {ram.percent}% | Net ↓{download_speed}/s ↑{upload_speed}/s", 'purple')
+
+                await asyncio.sleep(1)
+            except Exception as e:
+                print(f"Monitor Error: {e}")
+                await asyncio.sleep(5)
+
+    def _format_bytes(self, size):
+        power = 2**10
+        n = 0
+        power_labels = {0 : '', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
+        while size > power:
+            size /= power
+            n += 1
+        return f"{size:.1f}{power_labels.get(n, '')}B"
+
+monitor = HardwareMonitor()
 
 # Create global logger instance
 log = ChatLogger()
@@ -417,6 +483,9 @@ async def startup_event():
     if sys.platform == 'win32':
         loop = asyncio.get_event_loop()
         loop.set_exception_handler(windows_exception_handler)
+    
+    # Start hardware monitoring
+    await monitor.start()
 
 # File upload constraints for security
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
@@ -1055,3 +1124,9 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         log.error(f"WebSocket error", str(e))
         await manager.disconnect(websocket)
+
+if __name__ == "__main__":
+    import uvicorn
+    # This block allows running 'python main.py' directly, which is what start_server_mac.command does
+    # It defaults to HTTP on port 8000
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
