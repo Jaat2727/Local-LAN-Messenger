@@ -29,13 +29,12 @@ A real-time LAN messenger with WhatsApp-style features including **voice/video c
 
 ### 🍎 macOS / 🐧 Linux
 
-1.  **Open Terminal** in the project folder.
+1.  **Open Terminal** in the project folder (or just double-click the files on macOS).
 2.  **Run Setup Script**:
-    ```bash
-    chmod +x run_mac.sh  # Make script executable (first time only)
-    ./run_mac.sh
-    ```
-    This script will automatically create a virtual environment, install dependencies, and start the server.
+    - **HTTP**: Double-click `start_server_mac.command`
+    - **HTTPS**: Double-click `start_https_server_mac.command`
+
+    _Note: If you can't double-click, run `chmod +x _.command` in terminal first.\*
 
 ---
 
@@ -59,17 +58,22 @@ Once the server is running, use the links provided in the terminal:
 - `requirements.txt`: Python dependencies.
 - `start_server.bat`: Windows HTTP launcher.
 - `start_https_server.bat`: Windows HTTPS launcher (generates SSL).
-- `run_mac.sh`: macOS/Linux launcher.
+- `start_server_mac.command`: macOS HTTP launcher.
+- `start_https_server_mac.command`: macOS HTTPS launcher.
 - `uploaded_media/`: Stores shared files.
 - `chatter.db`: SQLite database for messages and users.
 
 ## 🤝 Contributing
 
-1.  Fork the repository.
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  Open a Pull Request.
+1.  (Optional) If you have initialized this repo yourself:
+    ```bash
+    git push -u origin main
+    ```
+2.  Fork the repository.
+3.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
+4.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+5.  Push to the branch (`git push origin feature/AmazingFeature`).
+6.  Open a Pull Request.
 
 ## 📄 License
 
