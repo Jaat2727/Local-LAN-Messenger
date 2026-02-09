@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0f1a">
+    <title>Call - Local-LAN-Messenger</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary: #00d9a5;
+            --primary-glow: rgba(0, 217, 165, 0.3);
+            --danger: #ff4757;
+            --danger-glow: rgba(255, 71, 87, 0.3);
+            --bg-dark: #0a0f1a;
+            --bg-card: rgba(255, 255, 255, 0.05);
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* ===== ANIMATED BACKGROUND ===== */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .gradient-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #00d9a5, #00b4d8);
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(135deg, #7c3aed, #ec4899);
+            bottom: -50px;
+            right: -50px;
+            animation-delay: -7s;
+        }
+
+        .orb-3 {
+            width: 250px;
+            height: 250px;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -14s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -30px) scale(1.1); }
+            50% { transform: translate(-20px, 20px) scale(0.9); }
+            75% { transform: translate(20px, 30px) scale(1.05); }
+        }
+
+        /* ===== CALL CONTAINER ===== */
+        .call-container {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+        }
+
+        /* ===== CALL STATES ===== */
+        .call-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .call-screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* ===== AVATAR WITH PULSE ===== */
+        .call-avatar-wrapper {
+            position: relative;
+            margin-bottom: 32px;
+        }
+
+        .call-avatar {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #00b4d8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 56px;
+            font-weight: 600;
+            color: white;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 8px 32px var(--primary-glow);
+        }
+
+        .avatar-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: var(--primary);
+            z-index: 1;
+        }
+
+        .avatar-pulse.ringing {
+            animation: pulse-ring 1.5s ease-out infinite;
+        }
+
+        .avatar-pulse::before,
+        .avatar-pulse::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: pulse-ring 1.5s ease-out infinite;
+        }
+
+        .avatar-pulse::before {
+            animation-delay: 0.3s;
+        }
+
+        .avatar-pulse::after {
+            animation-delay: 0.6s;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.5;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(2);
+                opacity: 0;
+            }
+        }
+
+        /* ===== CALL INFO ===== */
+        .call-name {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .call-status {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .call-status .material-icons {
+            font-size: 18px;
+            animation: blink 1s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .call-timer {
+            font-size: 48px;
+            font-weight: 300;
+            margin-bottom: 40px;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        /* ===== PRE-ACCEPT CONTROLS ===== */
+        .pre-accept-controls {
+            display: flex;
+            gap: 20px;
+            margin: 32px 0;
+        }
+
+        .pre-accept-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px 28px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 2px solid var(--glass-border);
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .pre-accept-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .pre-accept-btn.active {
+            border-color: var(--primary);
+            background: rgba(0, 217, 165, 0.2);
+        }
+
+        .pre-accept-btn.muted {
+            border-color: var(--danger);
+            background: rgba(255, 71, 87, 0.2);
+        }
+
+        .pre-accept-btn .material-icons {
+            font-size: 32px;
+        }
+
+        .pre-accept-btn.muted .material-icons {
+            color: var(--danger);
+        }
+
+        .pre-accept-label {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* ===== CALL ACTION BUTTONS ===== */
+        .call-actions {
+            display: flex;
+            gap: 24px;
+            margin-top: 40px;
+        }
+
+        .call-btn {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .call-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .call-btn:hover::before {
+            opacity: 1;
+        }
+
+        .call-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .call-btn:active {
+            transform: scale(0.95);
+        }
+
+        .call-btn .material-icons {
+            font-size: 32px;
+            color: white;
+            z-index: 1;
+        }
+
+        .btn-accept {
+            background: linear-gradient(135deg, var(--primary), #00b4d8);
+            box-shadow: 0 8px 24px var(--primary-glow);
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, var(--danger), #ff6b81);
+            box-shadow: 0 8px 24px var(--danger-glow);
+        }
+
+        .btn-control {
+            width: 56px;
+            height: 56px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-control.active {
+            background: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .btn-control .material-icons {
+            font-size: 24px;
+        }
+
+        /* ===== VIDEO CALL VIEW (GRID SYSTEM) ===== */
+        .video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            overflow: hidden;
+        }
+
+        .video-container.active {
+            display: block;
+        }
+
+        .video-grid {
+            display: grid;
+            width: 100%;
+            height: 100%;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+            gap: 2px;
+            background: #000;
+        }
+
+        .video-grid.two-users { grid-template-rows: 1fr 1fr; }
+        .video-grid.more-users { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+        @media (min-width: 768px) {
+            .video-grid.two-users { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+            .video-grid.more-users { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+        }
+
+        .remote-video-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #111;
+        }
+
+        .remote-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease, object-fit 0.3s ease;
+        }
+
+        /* Video Controls Overlay */
+        .video-overlay-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .remote-video-wrapper:hover .video-overlay-controls,
+        .remote-video-wrapper:active .video-overlay-controls {
+            opacity: 1;
+        }
+
+        .overlay-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        .remote-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 5;
+        }
+
+        .local-video-pip {
+            position: absolute;
+            top: max(20px, env(safe-area-inset-top));
+            right: 20px;
+            width: 120px;
+            height: 160px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 3px solid var(--glass-border);
+            z-index: 100;
+            cursor: grab;
+            transition: transform 0.2s ease, width 0.3s, height 0.3s;
+            touch-action: none;
+            background: #222;
+        }
+
+        .local-video-pip:active {
+            cursor: grabbing;
+        }
+
+        .local-video-pip.expanded {
+            width: 180px;
+            height: 240px;
+        }
+
+        .local-video-pip video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        /* ===== TOP BAR ===== */
+        .video-top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 20px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 90;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            pointer-events: none; /* Let clicks pass through to video */
+        }
+
+        .video-top-bar > * {
+            pointer-events: auto; /* Re-enable clicks on controls */
+        }
+
+        .video-call-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .video-call-name {
+            font-size: 18px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .video-call-timer {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .video-top-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .top-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .top-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .top-btn.active {
+            background: var(--primary);
+        }
+
+        /* ===== BOTTOM CONTROLS ===== */
+        .video-controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 16px;
+            padding: 16px 24px;
+            background: var(--glass);
+            backdrop-filter: blur(30px);
+            border-radius: 40px;
+            border: 1px solid var(--glass-border);
+            z-index: 90;
+            white-space: nowrap;
+            overflow-x: auto;
+            max-width: 95vw;
+        }
+
+        .control-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn.active {
+            background: var(--danger);
+        }
+
+        .control-btn.end-call {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--danger), #ff6b81);
+            margin: 0 8px;
+        }
+
+        .control-btn .material-icons {
+            font-size: 26px;
+        }
+
+        /* ===== ADD USER MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #1a1f2e;
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar-small {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .invite-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .invite-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+        }
+
+        /* ===== AUDIO VISUALIZER ===== */
+        .audio-visualizer {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            height: 40px;
+            margin: 24px 0;
+        }
+
+        .audio-bar {
+            width: 6px;
+            background: linear-gradient(180deg, var(--primary), #00b4d8);
+            border-radius: 3px;
+            animation: audio-wave 0.5s ease-in-out infinite alternate;
+        }
+
+        .audio-bar:nth-child(1) { height: 15px; animation-delay: 0s; }
+        .audio-bar:nth-child(2) { height: 25px; animation-delay: 0.1s; }
+        .audio-bar:nth-child(3) { height: 35px; animation-delay: 0.2s; }
+        .audio-bar:nth-child(4) { height: 25px; animation-delay: 0.3s; }
+        .audio-bar:nth-child(5) { height: 15px; animation-delay: 0.4s; }
+
+        @keyframes audio-wave {
+            from { height: 10px; }
+            to { height: 35px; }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            .video-controls {
+                bottom: 20px;
+                padding: 12px 16px;
+                gap: 10px;
+            }
+            
+            .control-btn { width: 44px; height: 44px; }
+            .control-btn.end-call { width: 56px; height: 56px; }
+            
+            .local-video-pip {
+                width: 100px;
+                height: 133px;
+                top: 80px;
+            }
+        }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+
+        .toast {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-size: 14px;
+            animation: toastIn 0.3s ease;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <div class="call-container">
+        <!-- Incoming Call Screen -->
+        <div id="incoming-screen" class="call-screen">
+            <div class="call-avatar-wrapper">
+                <div class="avatar-pulse ringing"></div>
+                <div class="call-avatar" id="incoming-avatar">?</div>
+            </div>
+            <div class="call-name" id="incoming-name">Unknown</div>
+            <div class="call-status">
+                <span class="material-icons">phone_in_talk</span>
+                <span id="incoming-type">Incoming call...</span>
+            </div>
+
+            <div class="pre-accept-controls" id="pre-accept-controls" style="display:none">
+                <button class="pre-accept-btn active" id="pre-mic-btn" onclick="togglePreMic()">
+                    <span class="material-icons">mic</span>
+                    <span class="pre-accept-label" id="pre-mic-label">Mic On</span>
+                </button>
+                <button class="pre-accept-btn active" id="pre-camera-btn" onclick="togglePreCamera()">
+                    <span class="material-icons">videocam</span>
+                    <span class="pre-accept-label" id="pre-camera-label">Camera On</span>
+                </button>
+            </div>
+
+            <div class="call-actions">
+                <button class="call-btn btn-reject" onclick="rejectCall()">
+                    <span class="material-icons">call_end</span>
+                </button>
+                <button class="call-btn btn-accept" onclick="acceptCall()">
+                    <span class="material-icons">call</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Outgoing Call Screen -->
+        <div id="outgoing-screen" class="call-screen">
+            <div class="call-avatar-wrapper">
+                <div class="avatar-pulse ringing"></div>
+                <div class="call-avatar" id="outgoing-avatar">?</div>
+            </div>
+            <div class="call-name" id="outgoing-name">Unknown</div>
+            <div class="call-status">
+                <span class="material-icons">ring_volume</span>
+                <span>Calling...</span>
+            </div>
+            <div class="call-actions">
+                <button class="call-btn btn-reject" onclick="cancelCall()">
+                    <span class="material-icons">call_end</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Call End Screen -->
+        <div id="end-screen" class="call-screen">
+            <div class="call-end-icon">
+                <span style="font-size: 40px; color: var(--danger)" class="material-icons">call_end</span>
+            </div>
+            <div class="call-name" id="end-name">Call Ended</div>
+            <div class="call-timer" id="end-duration" style="font-size: 20px; color: var(--text-secondary)">Duration: 00:00</div>
+            <button class="call-btn btn-control" onclick="closeWindow()" style="width: 56px; height: 56px;">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Video Call Container -->
+    <div id="video-container" class="video-container">
+        <!-- Grid for remote videos -->
+        <div id="video-grid" class="video-grid">
+            <!-- Videos will be injected here dynamically -->
+        </div>
+        
+        <div class="video-top-bar">
+            <div class="video-call-info">
+                <div class="video-call-name" id="video-name">Group Call</div>
+                <div class="video-call-timer" id="video-timer">00:00</div>
+            </div>
+            <div class="video-top-actions">
+                <button class="top-btn" id="add-user-btn" onclick="openAddUserModal()">
+                    <span class="material-icons">group_add</span>
+                </button>
+                <button class="top-btn" id="flip-btn" onclick="flipCamera()">
+                    <span class="material-icons">flip_camera_ios</span>
+                </button>
+                <button class="top-btn" id="fullscreen-btn" onclick="toggleFullscreen()">
+                    <span class="material-icons">fullscreen</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Local video PIP -->
+        <div class="local-video-pip" id="local-pip" onclick="togglePipSize()">
+            <video id="local-video" autoplay playsinline muted></video>
+        </div>
+
+        <div class="video-controls">
+            <button class="control-btn" id="video-mute-btn" onclick="toggleMute()">
+                <span class="material-icons">mic</span>
+            </button>
+            <button class="control-btn" id="camera-btn" onclick="toggleCamera()">
+                <span class="material-icons">videocam</span>
+            </button>
+            <button class="control-btn end-call" onclick="endCall()">
+                <span class="material-icons">call_end</span>
+            </button>
+            <button class="control-btn" id="speaker-btn" onclick="toggleSpeaker()">
+                <span class="material-icons">volume_up</span>
+            </button>
+        </div>
+    </div>
+
+    <audio id="remote-audio-mixed" autoplay></audio>
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Add User Modal -->
+    <div class="modal-overlay" id="add-user-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Add to Call</div>
+                <button class="close-modal" onclick="closeAddUserModal()">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="user-list" id="active-user-list">
+                <!-- User items -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== STATE =====
+        let callData = null;
+        let ws = null;
+        let localStream = null;
+        let peers = {}; // username -> { pc, stream, videoEl, rotation, scale }
+        let callTimer = null;
+        let callSeconds = 0;
+        let heartbeatInterval = null;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        
+        // Settings
+        let isMuted = false;
+        let isCameraOn = true;
+        let isSpeakerOn = true;
+        let facingMode = 'user';
+        let isPipExpanded = false;
+        let activeUsers = []; // List of online users
+
+        // Pre-accept
+        let preMicOn = true;
+        let preCameraOn = true;
+
+        const ICE_CONFIG = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        // ===== INITIALIZATION =====
+        document.addEventListener('DOMContentLoaded', () => {
+            parseCallData();
+            initDraggablePip();
+            setupFullscreenListener();
+            setupBeforeUnload();
+        });
+
+        function setupBeforeUnload() {
+            window.addEventListener('beforeunload', () => {
+                endCall(true); // Sync call end
+            });
+        }
+
+        function parseCallData() {
+            const params = new URLSearchParams(window.location.search);
+            callData = {
+                username: params.get('username') || '',
+                password: params.get('password') || '',
+                with: params.get('with') || '', // Initial target
+                type: params.get('type') || 'voice',
+                direction: params.get('direction') || 'outgoing'
+            };
+
+            if (!callData.username) {
+                showToast('Error: Missing username');
+                setTimeout(closeWindow, 2000);
+                return;
+            }
+
+            connectWebSocket();
+        }
+
+        function connectWebSocket() {
+            if(ws) {
+                try { ws.close(); } catch(e){}
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                reconnectAttempts = 0;
+                startHeartbeat();
+                ws.send(JSON.stringify({
+                    username: callData.username,
+                    password: callData.password
+                }));
+                showToast("Connected", 1000);
+                document.getElementById('call-status-indicator')?.classList?.remove('disconnected');
+            };
+
+            ws.onmessage = handleMessage;
+            
+            ws.onclose = (e) => {
+                stopHeartbeat();
+                console.warn("WS Closed", e.code, e.reason);
+                if (!e.wasClean) {
+                     attemptReconnect();
+                }
+            };
+            
+            ws.onerror = (e) => {
+                console.error("WS Error", e);
+            };
+        }
+        
+        function startHeartbeat() {
+            stopHeartbeat();
+            heartbeatInterval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'ping' }));
+                }
+            }, 10000); // 10s heartbeat
+        }
+        
+        function stopHeartbeat() {
+            if(heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+        
+        function attemptReconnect() {
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++;
+                const delay = Math.min(1000 * reconnectAttempts, 5000);
+                showToast(`Reconnecting... (${reconnectAttempts})`);
+                setTimeout(connectWebSocket, delay);
+            } else {
+                showToast("Connection lost. Please refresh.", "error");
+                // Maybe show a modal to refresh
+            }
+        }
+
+        async function handleMessage(event) {
+            const data = JSON.parse(event.data);
+            const fromUser = data.from;
+
+            switch (data.type) {
+                case 'login_success':
+                    activeUsers = data.online_users;
+                    if (callData.direction === 'outgoing' && callData.with) {
+                        await startOutgoingCall();
+                    } else if (callData.direction === 'incoming') {
+                        showScreen('incoming');
+                        updateIncomingUI(callData.with, callData.type);
+                    }
+                    if(data.msg) showToast(data.msg); // Welcome msg
+                    break;
+
+                case 'typing_update':
+                case 'login_success': // Update active users
+                    if(data.online_users) activeUsers = data.online_users;
+                    break;
+                case 'user_joined':
+                case 'user_left':
+                    if(data.online_users) activeUsers = data.online_users;
+                    updateAddUserList();
+                    // Handle user dropping from call
+                    if (data.type === 'user_left' && peers[data.username]) {
+                        removePeer(data.username);
+                        showToast(`${data.username} left the call`);
+                    }
+                    break;
+
+                case 'call_incoming':
+                    // If we are already in a call, maybe auto-reject or show notification?
+                    // For now, simple logic: only accept if free, but here we just update UI
+                    if(Object.keys(peers).length === 0) {
+                        callData.with = fromUser;
+                        callData.type = data.callType;
+                        callData.direction = 'incoming';
+                        showScreen('incoming');
+                        updateIncomingUI(fromUser, data.callType);
+                    }
+                    else {
+                        // We are in a call, maybe reject busy?
+                        ws.send(JSON.stringify({ type: 'call_reject', to: fromUser, reason: 'busy' }));
+                        // OR: show toast "Incoming call from X" to allow joining
+                        showToast(`Incoming call from ${fromUser}. (Auto-busy)`);
+                    }
+                    break;
+
+                case 'call_accepted':
+                    showToast(`${fromUser} accepted`);
+                    // Create peer connection for this user
+                    await createPeerConnection(fromUser, true); // Initiator = true
+                    // Start timer if first connection
+                    if (!callTimer) startCallTimer();
+                    updateVideoLayout();
+                    break;
+
+                case 'call_rejected':
+                case 'call_ended':
+                case 'call_cancelled':
+                    showToast(`${fromUser} ${data.type.split('_')[1]}`);
+                    removePeer(fromUser);
+                    // If no peers left and we were in a call loop
+                    if (Object.keys(peers).length === 0 && callData.direction !== 'incoming') {
+                         showEndScreen();
+                    } else if (Object.keys(peers).length === 0 && callData.direction === 'incoming') {
+                         showEndScreen();
+                    }
+                    // If we are making outgoing call and rejected
+                    if(document.getElementById('outgoing-screen').classList.contains('active')) {
+                        showEndScreen();
+                    }
+                    break;
+
+                case 'webrtc_offer':
+                    await handleOffer(fromUser, data.offer);
+                    break;
+
+                case 'webrtc_answer':
+                    await handleAnswer(fromUser, data.answer);
+                    break;
+
+                case 'ice_candidate':
+                    await handleIceCandidate(fromUser, data.candidate);
+                    break;
+            }
+        }
+
+        // ===== CALL LOGIC =====
+
+        async function startOutgoingCall() {
+            showScreen('outgoing');
+            document.getElementById('outgoing-name').textContent = callData.with;
+            document.getElementById('outgoing-avatar').textContent = callData.with[0].toUpperCase();
+            
+            localStream = await getMediaStream(callData.type);
+            if (!localStream) {
+                showToast('Camera access denied');
+                return;
+            }
+
+            // Send invite
+            ws.send(JSON.stringify({
+                type: 'call_initiate',
+                to: callData.with,
+                callType: callData.type
+            }));
+        }
+
+        function updateIncomingUI(from, type) {
+            document.getElementById('incoming-name').textContent = from;
+            document.getElementById('incoming-avatar').textContent = from[0].toUpperCase();
+            document.getElementById('incoming-type').innerText = type === 'video' ? 'Incoming Video Call' : 'Incoming Voice Call';
+            
+            if (type === 'video') {
+                document.getElementById('pre-accept-controls').style.display = 'flex';
+            }
+        }
+
+        async function acceptCall() {
+            localStream = await getMediaStream(callData.type);
+            if (!localStream) {
+                showToast('Media access needed');
+                rejectCall();
+                return;
+            }
+
+            // Apply pre-settings
+            if (!preMicOn) {
+                localStream.getAudioTracks().forEach(t => t.enabled = false);
+                isMuted = true;
+            }
+            if (!preCameraOn && callData.type === 'video') {
+                localStream.getVideoTracks().forEach(t => t.enabled = false);
+                isCameraOn = false;
+            }
+
+            showScreen('video');
+            setupLocalVideo();
+            updateControlsUI();
+
+            // Send accept
+            ws.send(JSON.stringify({
+                type: 'call_accept',
+                to: callData.with 
+            }));
+            
+            // Allow receiving offers now
+        }
+
+        function rejectCall() {
+            ws.send(JSON.stringify({ type: 'call_reject', to: callData.with }));
+            showEndScreen();
+        }
+
+        function cancelCall() {
+            ws.send(JSON.stringify({ type: 'call_cancel', to: callData.with }));
+            showEndScreen();
+        }
+
+        function endCall(sync = false) {
+            // Send end to all participants that are active
+            const targets = Object.keys(peers).length > 0 ? Object.keys(peers) : [callData.with];
+            
+            targets.forEach(user => {
+                const msg = JSON.stringify({ type: 'call_end', to: user });
+                if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
+            });
+            
+            cleanupAllPeers();
+            stopCallTimer();
+            if(!sync) showEndScreen();
+        }
+
+        function cleanupAllPeers() {
+            Object.keys(peers).forEach(user => removePeer(user));
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+            if(ws) {
+                ws.onclose = null; // Prevent reconnect loop on clean exit
+                ws.close();
+            }
+        }
+
+        function removePeer(user) {
+            if (peers[user]) {
+                peers[user].pc.close();
+                // Remove video element
+                const wrapper = document.getElementById(`video-wrapper-${user}`);
+                if (wrapper) wrapper.remove();
+                delete peers[user];
+                updateVideoLayout();
+            }
+        }
+
+        // ===== WEBRTC CORE =====
+
+        async function createPeerConnection(remoteUser, iAmInitiator) {
+            if (peers[remoteUser]) return peers[remoteUser].pc;
+
+            const pc = new RTCPeerConnection(ICE_CONFIG);
+            
+            // Add local tracks
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: 'ice_candidate',
+                        to: remoteUser,
+                        candidate: event.candidate
+                    }));
+                }
+            };
+
+            pc.ontrack = (event) => {
+                const stream = event.streams[0];
+                addRemoteVideo(remoteUser, stream);
+            };
+
+            peers[remoteUser] = { pc, stream: null, videoEl: null };
+
+            if (iAmInitiator) {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                ws.send(JSON.stringify({
+                    type: 'webrtc_offer',
+                    to: remoteUser,
+                    offer: offer
+                }));
+            }
+            
+            showScreen('video'); // Ensure we are on video screen
+            setupLocalVideo();
+            if(!callTimer) startCallTimer();
+
+            return pc;
+        }
+
+        async function handleOffer(fromUser, offer) {
+            // Only accept if we are in a state that expects connection
+            // ie. we accepted a call or are in a call
+            // For now, assume if we receive offer, we accept it if we have local media
+            if (!localStream) {
+                // Should not happen if flow is correct
+                return;
+            }
+
+            const pc = await createPeerConnection(fromUser, false);
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            
+            ws.send(JSON.stringify({
+                type: 'webrtc_answer',
+                to: fromUser,
+                answer: answer
+            }));
+        }
+
+        async function handleAnswer(fromUser, answer) {
+            if (peers[fromUser]) {
+                await peers[fromUser].pc.setRemoteDescription(new RTCSessionDescription(answer));
+            }
+        }
+
+        async function handleIceCandidate(fromUser, candidate) {
+            if (peers[fromUser]) {
+                try {
+                    await peers[fromUser].pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch(e) { console.warn(e); }
+            }
+        }
+
+        // ===== VIDEO UI MANAGEMENT =====
+
+        function setupLocalVideo() {
+            const localVid = document.getElementById('local-video');
+            if (localVid && localStream) {
+                localVid.srcObject = localStream;
+            }
+        }
+
+        function addRemoteVideo(user, stream) {
+            if (document.getElementById(`video-wrapper-${user}`)) return;
+
+            const grid = document.getElementById('video-grid');
+            
+            const wrapper = document.createElement('div');
+            wrapper.id = `video-wrapper-${user}`;
+            wrapper.className = 'remote-video-wrapper';
+            
+            const vid = document.createElement('video');
+            vid.className = 'remote-video';
+            vid.autoplay = true;
+            vid.playsInline = true;
+            vid.srcObject = stream;
+            vid.id = `video-${user}`;
+            
+            // Initialize transforms
+            wrapper.dataset.rotate = 0;
+            wrapper.dataset.fit = 'cover';
+
+            // Overlay Controls
+            const overlay = document.createElement('div');
+            overlay.className = 'video-overlay-controls';
+            
+            // Rotate Button
+            const rotateBtn = document.createElement('button');
+            rotateBtn.className = 'overlay-btn';
+            rotateBtn.innerHTML = '<span class="material-icons">rotate_right</span>';
+            rotateBtn.onclick = (e) => { e.stopPropagation(); rotateVideo(wrapper, vid); };
+            
+            // Scale Button
+            const scaleBtn = document.createElement('button');
+            scaleBtn.className = 'overlay-btn';
+            scaleBtn.innerHTML = '<span class="material-icons">aspect_ratio</span>';
+            scaleBtn.onclick = (e) => { e.stopPropagation(); toggleFit(wrapper, vid); };
+            
+            overlay.appendChild(rotateBtn);
+            overlay.appendChild(scaleBtn);
+
+            const label = document.createElement('div');
+            label.className = 'remote-label';
+            label.textContent = user;
+
+            wrapper.appendChild(vid);
+            wrapper.appendChild(overlay);
+            wrapper.appendChild(label);
+            grid.appendChild(wrapper);
+
+            if(peers[user]) peers[user].videoEl = vid;
+            updateVideoLayout();
+        }
+
+        function updateVideoLayout() {
+            const grid = document.getElementById('video-grid');
+            const count = grid.children.length;
+            grid.className = 'video-grid';
+            if (count >= 2) grid.classList.add('two-users');
+            if (count > 2) grid.classList.add('more-users');
+            
+            const names = Object.keys(peers);
+            document.getElementById('video-name').textContent = 
+                names.length > 0 ? (names.length > 1 ? `Group (${names.length+1})` : names[0]) : "Connecting...";
+        }
+
+        function rotateVideo(wrapper, vid) {
+            let r = parseInt(wrapper.dataset.rotate || 0);
+            r = (r + 90) % 360;
+            wrapper.dataset.rotate = r;
+            vid.style.transform = `rotate(${r}deg)`;
+        }
+
+        function toggleFit(wrapper, vid) {
+            const current = wrapper.dataset.fit;
+            const next = current === 'cover' ? 'contain' : 'cover';
+            wrapper.dataset.fit = next;
+            vid.style.objectFit = next;
+        }
+
+        // ===== CONTROLS =====
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+            updateControlsUI();
+        }
+
+        function toggleCamera() {
+            isCameraOn = !isCameraOn;
+            if (localStream) localStream.getVideoTracks().forEach(t => t.enabled = isCameraOn);
+            updateControlsUI();
+        }
+
+        function toggleSpeaker() {
+            isSpeakerOn = !isSpeakerOn;
+            updateControlsUI();
+            showToast(isSpeakerOn ? 'Speaker' : 'Headset');
+        }
+
+        function updateControlsUI() {
+            const muteBtn = document.getElementById('video-mute-btn');
+            if(muteBtn) {
+                muteBtn.classList.toggle('active', isMuted);
+                muteBtn.innerHTML = `<span class="material-icons">${isMuted ? 'mic_off' : 'mic'}</span>`;
+            }
+            const camBtn = document.getElementById('camera-btn');
+             if(camBtn) {
+                camBtn.classList.toggle('active', !isCameraOn);
+                camBtn.innerHTML = `<span class="material-icons">${isCameraOn ? 'videocam' : 'videocam_off'}</span>`;
+            }
+        }
+
+        // ===== HELPER UI =====
+
+        function showScreen(name) {
+            document.querySelectorAll('.call-screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('video-container').classList.remove('active');
+            document.querySelector('.call-container').style.display = 'flex';
+
+            if (name === 'video') {
+                document.querySelector('.call-container').style.display = 'none';
+                document.getElementById('video-container').classList.add('active');
+            } else if (name === 'end') {
+                document.getElementById('end-screen').classList.add('active');
+            } else if (name === 'incoming') {
+                 document.getElementById('incoming-screen').classList.add('active');
+            } else if (name === 'outgoing') {
+                 document.getElementById('outgoing-screen').classList.add('active');
+            }
+        }
+
+        function showEndScreen() {
+            showScreen('end');
+            setTimeout(closeWindow, 3000);
+        }
+
+        function closeWindow() {
+             // If this is a popup from window.open()
+             if (window.opener) {
+                 window.close();
+             } else {
+                 window.location.href = '/';
+             }
+        }
+
+        async function getMediaStream(type) {
+            try {
+                return await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: type === 'video' ? { facingMode: facingMode } : false
+                });
+            } catch(e) {
+                console.error(e);
+                return null;
+            }
+        }
+
+        function toggleFullscreen() {
+             if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        function initDraggablePip() {
+            const pip = document.getElementById('local-pip');
+            let isDragging = false;
+            let currentX;
+            let currentY;
+            let initialX;
+            let initialY;
+            let xOffset = 0;
+            let yOffset = 0;
+
+            function dragStart(e) {
+                initialX = e.clientX - xOffset;
+                initialY = e.clientY - yOffset;
+                if (e.target === pip || e.target.parentNode === pip) {
+                    isDragging = true;
+                }
+            }
+
+            function drag(e) {
+                if (isDragging) {
+                    e.preventDefault();
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                    xOffset = currentX;
+                    yOffset = currentY;
+                    setTranslate(currentX, currentY, pip);
+                }
+            }
+
+            function dragEnd(e) {
+                initialX = currentX;
+                initialY = currentY;
+                isDragging = false;
+            }
+
+            function setTranslate(xPos, yPos, el) {
+                el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+            }
+
+            // Simple pointer events
+            pip.addEventListener('mousedown', dragStart);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', dragEnd);
+        }
+        
+        function togglePipSize() {
+            const pip = document.getElementById('local-pip');
+            pip.classList.toggle('expanded');
+        }
+
+        // ===== ADD USER =====
+        function updateAddUserList() {
+            if(document.getElementById('add-user-modal').classList.contains('active')) {
+                openAddUserModal(); // Refresh list
+            }
+        }
+
+        function openAddUserModal() {
+            const list = document.getElementById('active-user-list');
+            list.innerHTML = '';
+            
+            // Filter out self and already connected peers
+            const others = activeUsers.filter(u => u !== callData.username && !peers[u]);
+            
+            if (others.length === 0) {
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:#888">No other users online</div>';
+            }
+            
+            others.forEach(user => {
+                const item = document.createElement('div');
+                item.className = 'user-item';
+                item.innerHTML = `
+                    <div class="user-info">
+                        <div class="user-avatar-small">${user[0].toUpperCase()}</div>
+                        <span>${user}</span>
+                    </div>
+                    <button class="invite-btn" onclick="inviteUser('${user}')">Add</button>
+                `;
+                list.appendChild(item);
+            });
+            
+            document.getElementById('add-user-modal').classList.add('active');
+        }
+
+        function closeAddUserModal() {
+            document.getElementById('add-user-modal').classList.remove('active');
+        }
+
+        function inviteUser(user) {
+            // Initiate call to this user. 
+            // NOTE: In Mesh, we are "calling" them. They treat it as incoming.
+            // When they accept, they will create peer connection with us.
+            // If they are already in a call, they might reject? 
+            // For now, this assumes they are free.
+            
+            ws.send(JSON.stringify({
+                type: 'call_initiate',
+                to: user,
+                callType: 'video'
+            }));
+            
+            showToast(`Invited ${user}`);
+            closeAddUserModal();
+        }
+
+        function showToast(msg) {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            document.getElementById('toast-container').appendChild(t);
+            setTimeout(()=>t.remove(), 3000);
+        }
+
+        // ===== FLIP CAMERA =====
+        async function flipCamera() {
+            if(!localStream) return;
+            facingMode = facingMode === 'user' ? 'environment' : 'user';
+            
+            // stop current video track
+             if (localStream) {
+                localStream.getVideoTracks().forEach(track => track.stop());
+            }
+            
+            const newStream = await getMediaStream('video'); 
+            if(newStream) {
+                 localStream = newStream;
+                 document.getElementById('local-video').srcObject = newStream;
+                 const videoTrack = newStream.getVideoTracks()[0];
+                 
+                 // Replace in all peers
+                 Object.values(peers).forEach(p => {
+                     const sender = p.pc.getSenders().find(s => s.track.kind === 'video');
+                     if(sender) sender.replaceTrack(videoTrack);
+                 });
+                 showToast('Camera flipped');
+            }
+        }
+
+        // ===== PRE-ACCEPT TOGGLES =====
+        function togglePreMic() {
+            preMicOn = !preMicOn;
+            updatePreBtn('pre-mic-btn', preMicOn, 'mic', 'Mic On', 'Mic Off');
+        }
+        function togglePreCamera() {
+            preCameraOn = !preCameraOn;
+            updatePreBtn('pre-camera-btn', preCameraOn, 'videocam', 'Camera On', 'Camera Off');
+        }
+        function updatePreBtn(id, on, icon, txtOn, txtOff) {
+            const btn = document.getElementById(id);
+            btn.className = `pre-accept-btn ${on?'active':'muted'}`;
+            btn.querySelector('.material-icons').innerText = on ? icon : icon + '_off';
+            btn.querySelector('.pre-accept-label').innerText = on ? txtOn : txtOff;
+        }
+
+    </script>
+</body>
+</html>

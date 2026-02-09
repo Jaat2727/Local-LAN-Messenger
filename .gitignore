@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Database
+*.db
+*.sqlite3
+
+# SSL Certificates
+*.pem
+*.key
+*.crt
+
+# Logs
+*.log
+
+# Media (Keep directories but ignore content)
+uploaded_media/*
+!uploaded_media/.gitkeep
+uploaded_thumbnails/*
+!uploaded_thumbnails/.gitkeep
+
+# OS Specific
+.DS_Store
+Thumbs.db
