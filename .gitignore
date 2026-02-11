@@ -34,6 +34,17 @@ uploaded_media/*
 uploaded_thumbnails/*
 !uploaded_thumbnails/.gitkeep
 
+data/media/images/*
+!data/media/images/.gitkeep
+data/media/videos/*
+!data/media/videos/.gitkeep
+data/media/files/*
+!data/media/files/.gitkeep
+data/media/voice/*
+!data/media/voice/.gitkeep
+data/thumbnails/images/*
+!data/thumbnails/images/.gitkeep
+
 # OS Specific
 .DS_Store
 Thumbs.db
