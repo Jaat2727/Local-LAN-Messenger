@@ -70,12 +70,7 @@ The launch scripts automatically detect your **current active network IP** and p
 - `start_https_server_mac.command`: macOS/Linux HTTPS launcher entrypoint.
 - `scripts/windows/`: Platform-specific Windows startup scripts.
 - `scripts/unix/`: Platform-specific Unix startup scripts.
-- `data/media/images/`: Uploaded image files.
-- `data/media/videos/`: Uploaded video files.
-- `data/media/files/`: Uploaded generic files/documents.
-- `data/media/voice/`: Uploaded voice message files.
-- `data/thumbnails/images/`: Generated image thumbnails.
-- `uploaded_media/`, `uploaded_thumbnails/`: Legacy folders auto-migrated by `main.py` for backward compatibility.
+- `uploaded_media/`: Stores shared files.
 - `chatter.db`: SQLite database for messages and users.
 
 ## 🗂️ Upload Storage Organization
