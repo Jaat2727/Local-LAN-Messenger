@@ -73,6 +73,22 @@ The launch scripts automatically detect your **current active network IP** and p
 - `uploaded_media/`: Stores shared files.
 - `chatter.db`: SQLite database for messages and users.
 
+## 🗂️ Upload Storage Organization
+
+The server now keeps uploads in organized folders under `data/`:
+
+- Media root: `data/media/`
+  - `images/`, `videos/`, `files/`, `voice/`
+- Thumbnails root: `data/thumbnails/images/`
+
+`main.py` automatically:
+
+1. Creates the folder structure on startup.
+2. Migrates old files from `uploaded_media/` and `uploaded_thumbnails/` if present.
+3. Normalizes old DB message paths to the new organized format.
+
+This keeps server files clean and easier to manage while preserving existing data.
+
 ## 🤝 Contributing
 
 1.  (Optional) If you have initialized this repo yourself:

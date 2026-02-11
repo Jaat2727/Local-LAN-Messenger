@@ -353,10 +353,114 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 # --- SETUP FOLDERS ---
-MEDIA_DIR = "uploaded_media"
-THUMB_DIR = "uploaded_thumbnails"
+DATA_DIR = "data"
+MEDIA_DIR = os.path.join(DATA_DIR, "media")
+THUMB_DIR = os.path.join(DATA_DIR, "thumbnails")
+
+MEDIA_SUBDIRS = {
+    "image": "images",
+    "video": "videos",
+    "file": "files",
+    "voice": "voice",
+}
+
 os.makedirs(MEDIA_DIR, exist_ok=True)
 os.makedirs(THUMB_DIR, exist_ok=True)
+for subdir in MEDIA_SUBDIRS.values():
+    os.makedirs(os.path.join(MEDIA_DIR, subdir), exist_ok=True)
+os.makedirs(os.path.join(THUMB_DIR, MEDIA_SUBDIRS["image"]), exist_ok=True)
+
+
+def migrate_legacy_upload_folders():
+    """Move old flat upload folders into new organized data structure."""
+    legacy_media_dir = "uploaded_media"
+    legacy_thumb_dir = "uploaded_thumbnails"
+
+    if os.path.isdir(legacy_media_dir):
+        for item in os.listdir(legacy_media_dir):
+            src = os.path.join(legacy_media_dir, item)
+            if not os.path.isfile(src):
+                continue
+
+            ext = item.rsplit(".", 1)[-1].lower() if "." in item else ""
+            if ext in ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg"]:
+                bucket = MEDIA_SUBDIRS["image"]
+            elif ext in ["mp4", "webm", "mov", "avi", "mkv"]:
+                bucket = MEDIA_SUBDIRS["video"]
+            elif ext in ["webm", "ogg", "mp3", "wav", "m4a"]:
+                bucket = MEDIA_SUBDIRS["voice"]
+            else:
+                bucket = MEDIA_SUBDIRS["file"]
+
+            dst = os.path.join(MEDIA_DIR, bucket, item)
+            if not os.path.exists(dst):
+                shutil.move(src, dst)
+
+    if os.path.isdir(legacy_thumb_dir):
+        thumb_image_dir = os.path.join(THUMB_DIR, MEDIA_SUBDIRS["image"])
+        os.makedirs(thumb_image_dir, exist_ok=True)
+        for item in os.listdir(legacy_thumb_dir):
+            src = os.path.join(legacy_thumb_dir, item)
+            if not os.path.isfile(src):
+                continue
+            dst = os.path.join(thumb_image_dir, item)
+            if not os.path.exists(dst):
+                shutil.move(src, dst)
+
+
+def media_disk_path(relative_path: str) -> str:
+    return os.path.join(MEDIA_DIR, relative_path)
+
+
+def thumb_disk_path(relative_path: str) -> str:
+    return os.path.join(THUMB_DIR, relative_path)
+
+
+def media_exists(relative_path: str) -> bool:
+    if os.path.exists(media_disk_path(relative_path)):
+        return True
+    legacy_path = os.path.join("uploaded_media", os.path.basename(relative_path))
+    return os.path.exists(legacy_path)
+
+
+def thumb_exists(relative_path: str) -> bool:
+    if os.path.exists(thumb_disk_path(relative_path)):
+        return True
+    legacy_path = os.path.join("uploaded_thumbnails", os.path.basename(relative_path))
+    return os.path.exists(legacy_path)
+
+
+def normalize_media_key(stored: str, msg_type: str = "file") -> str:
+    """Normalize DB media keys to organized path format: <bucket>/<filename>."""
+    if "/" in stored:
+        return stored
+
+    if msg_type in MEDIA_SUBDIRS:
+        bucket = MEDIA_SUBDIRS[msg_type]
+    elif msg_type == "image":
+        bucket = MEDIA_SUBDIRS["image"]
+    elif msg_type == "video":
+        bucket = MEDIA_SUBDIRS["video"]
+    elif msg_type == "voice":
+        bucket = MEDIA_SUBDIRS["voice"]
+    else:
+        bucket = MEDIA_SUBDIRS["file"]
+
+    return f"{bucket}/{stored}"
+
+
+def list_files_recursive(base_dir: str) -> List[str]:
+    paths: List[str] = []
+    for root, _, files in os.walk(base_dir):
+        for name in files:
+            if name.startswith("."):
+                continue
+            full = os.path.join(root, name)
+            paths.append(os.path.relpath(full, base_dir).replace("\\", "/"))
+    return paths
+
+
+migrate_legacy_upload_folders()
 
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 app.mount("/thumbs", StaticFiles(directory=THUMB_DIR), name="thumbs")
@@ -412,6 +516,25 @@ def init_db():
         conn.commit()
 
 init_db()
+
+
+def migrate_media_message_paths():
+    """Normalize stored media keys in DB from flat filename to bucket/filename."""
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, message, type FROM messages WHERE type IN ('image', 'video', 'file', 'voice')")
+        rows = c.fetchall()
+
+        for row in rows:
+            current_message = row["message"]
+            normalized = normalize_media_key(current_message, row["type"])
+            if normalized != current_message:
+                c.execute("UPDATE messages SET message=? WHERE id=?", (normalized, row["id"]))
+
+        conn.commit()
+
+
+migrate_media_message_paths()
 
 class ConnectionManager:
     def __init__(self):
@@ -520,7 +643,17 @@ async def upload_files(request: Request, files: List[UploadFile] = File(...)):
                 continue
             
             unique_name = f"{uuid.uuid4()}.{file_extension}"
-            file_path = f"{MEDIA_DIR}/{unique_name}"
+            if (file.content_type or "").startswith("audio/"):
+                file_type = "voice"
+            elif (file.content_type or "").startswith("image/"):
+                file_type = "image"
+            elif (file.content_type or "").startswith("video/"):
+                file_type = "video"
+            else:
+                file_type = 'image' if file_extension in ['jpg', 'jpeg', 'png', 'webp', 'gif'] else ('video' if file_extension in ['mp4', 'webm', 'mov'] else 'file')
+            media_key = normalize_media_key(unique_name, file_type)
+            file_path = media_disk_path(media_key)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             
             # Stream file to disk in chunks for better performance
             file_size = 0
@@ -543,15 +676,14 @@ async def upload_files(request: Request, files: List[UploadFile] = File(...)):
             thumb_task = None
             if file_extension in ['jpg', 'jpeg', 'png', 'webp', 'gif']:
                 loop = asyncio.get_event_loop()
-                thumb_task = loop.run_in_executor(None, generate_thumbnail, file_path, unique_name)
+                thumb_task = loop.run_in_executor(None, generate_thumbnail, file_path, media_key)
                 thumbnail_tasks.append((len(uploaded_results), thumb_task))
             
             # Log successful upload
-            file_type = 'image' if file_extension in ['jpg', 'jpeg', 'png', 'webp', 'gif'] else ('video' if file_extension in ['mp4', 'webm', 'mov'] else 'file')
             log.file_uploaded(file.filename, file_size / (1024 * 1024), file_type)
             
             uploaded_results.append({
-                "filename": unique_name,
+                "filename": media_key,
                 "original_name": file.filename,
                 "ext": file_extension,
                 "size": file_size,
@@ -576,7 +708,7 @@ async def upload_files(request: Request, files: List[UploadFile] = File(...)):
             
     return {"files": uploaded_results}
 
-def generate_thumbnail(file_path: str, unique_name: str) -> bool:
+def generate_thumbnail(file_path: str, media_key: str) -> bool:
     """Generate thumbnail for image files"""
     try:
         img = Image.open(file_path)
@@ -584,7 +716,8 @@ def generate_thumbnail(file_path: str, unique_name: str) -> bool:
         if img.mode in ('RGBA', 'P'):
             img = img.convert('RGB')
         img.thumbnail((300, 300), Image.Resampling.LANCZOS)
-        thumb_path = f"{THUMB_DIR}/{unique_name}"
+        thumb_path = thumb_disk_path(media_key)
+        os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
         img.save(thumb_path, quality=85, optimize=True)
         return True
     except Exception as e:
@@ -617,25 +750,22 @@ async def get_media_gallery(
         
         media_items = []
         for row in rows:
-            filename = row['message']
-            file_path = f"{MEDIA_DIR}/{filename}"
-            thumb_path = f"{THUMB_DIR}/{filename}"
-            
-            # Skip if file doesn't exist
-            if not os.path.exists(file_path):
+            media_key = normalize_media_key(row['message'], row['type'])
+            if not media_exists(media_key):
                 continue
-                
+
+            has_thumb = thumb_exists(media_key)
             media_items.append({
                 "id": row['id'],
                 "user": row['username'],
-                "filename": filename,
+                "filename": media_key,
                 "type": row['type'],
                 "timestamp": row['timestamp'],
                 "size": row['file_size'] or 0,
-                "original_name": row['original_name'] or filename,
-                "has_thumb": os.path.exists(thumb_path),
-                "media_url": f"/media/{filename}",
-                "thumb_url": f"/thumbs/{filename}" if os.path.exists(thumb_path) else None
+                "original_name": row['original_name'] or os.path.basename(media_key),
+                "has_thumb": has_thumb,
+                "media_url": f"/media/{media_key}",
+                "thumb_url": f"/thumbs/{media_key}" if has_thumb else None
             })
         
         return {"media": media_items, "total": len(media_items)}
@@ -646,26 +776,26 @@ async def cleanup_orphan_files():
     """Remove files that exist on disk but not in database"""
     with get_db() as conn:
         c = conn.cursor()
-        c.execute("SELECT message FROM messages WHERE type IN ('image', 'video', 'file')")
-        db_files = set(row[0] for row in c.fetchall())
+        c.execute("SELECT message, type FROM messages WHERE type IN ('image', 'video', 'file', 'voice')")
+        db_files = set(normalize_media_key(row[0], row[1]) for row in c.fetchall())
     
     cleaned_media = 0
     cleaned_thumbs = 0
     
     # Clean orphan media files
-    for filename in os.listdir(MEDIA_DIR):
+    for filename in list_files_recursive(MEDIA_DIR):
         if filename not in db_files:
             try:
-                os.remove(f"{MEDIA_DIR}/{filename}")
+                os.remove(media_disk_path(filename))
                 cleaned_media += 1
             except Exception as e:
                 print(f"Error removing media {filename}: {e}")
     
     # Clean orphan thumbnails
-    for filename in os.listdir(THUMB_DIR):
+    for filename in list_files_recursive(THUMB_DIR):
         if filename not in db_files:
             try:
-                os.remove(f"{THUMB_DIR}/{filename}")
+                os.remove(thumb_disk_path(filename))
                 cleaned_thumbs += 1
             except Exception as e:
                 print(f"Error removing thumbnail {filename}: {e}")
@@ -682,7 +812,7 @@ async def get_storage_stats():
     """Get storage usage statistics"""
     def get_folder_size(folder):
         total = 0
-        for filename in os.listdir(folder):
+        for filename in list_files_recursive(folder):
             filepath = os.path.join(folder, filename)
             if os.path.isfile(filepath):
                 total += os.path.getsize(filepath)
@@ -690,12 +820,12 @@ async def get_storage_stats():
     
     media_size = get_folder_size(MEDIA_DIR)
     thumb_size = get_folder_size(THUMB_DIR)
-    media_count = len(os.listdir(MEDIA_DIR))
-    thumb_count = len(os.listdir(THUMB_DIR))
+    media_count = len(list_files_recursive(MEDIA_DIR))
+    thumb_count = len(list_files_recursive(THUMB_DIR))
     
     with get_db() as conn:
         c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM messages WHERE type IN ('image', 'video', 'file')")
+        c.execute("SELECT COUNT(*) FROM messages WHERE type IN ('image', 'video', 'file', 'voice')")
         db_count = c.fetchone()[0]
     
     return {
@@ -707,10 +837,11 @@ async def get_storage_stats():
         "orphan_files": media_count - db_count if media_count > db_count else 0
     }
 
-def delete_media_files(filename: str):
+def delete_media_files(filename: str, msg_type: str = "file"):
     """Safely delete media and thumbnail files"""
-    media_path = f"{MEDIA_DIR}/{filename}"
-    thumb_path = f"{THUMB_DIR}/{filename}"
+    media_key = normalize_media_key(filename, msg_type)
+    media_path = media_disk_path(media_key)
+    thumb_path = thumb_disk_path(media_key)
     
     try:
         if os.path.exists(media_path):
@@ -724,6 +855,21 @@ def delete_media_files(filename: str):
             os.remove(thumb_path)
     except Exception as e:
         log.error(f"Could not delete thumbnail {filename}", str(e))
+
+    # Backward compatibility for old flat folders
+    try:
+        legacy_media = os.path.join("uploaded_media", os.path.basename(filename))
+        if os.path.exists(legacy_media):
+            os.remove(legacy_media)
+    except Exception:
+        pass
+
+    try:
+        legacy_thumb = os.path.join("uploaded_thumbnails", os.path.basename(filename))
+        if os.path.exists(legacy_thumb):
+            os.remove(legacy_thumb)
+    except Exception:
+        pass
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -877,7 +1023,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             
                             # Delete associated files for media messages
                             if msg_type in ["image", "video", "file"]:
-                                delete_media_files(filename)
+                                delete_media_files(filename, msg_type)
                             
                             c.execute("DELETE FROM messages WHERE id=?", (msg_id,))
                             deleted_ids.append(msg_id)
@@ -1065,6 +1211,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 reply_to = data_json.get("reply_to", None)
                 file_size = data_json.get("file_size", 0)
                 original_name = data_json.get("original_name", "")
+                if action_type in ["image", "video", "file", "voice"]:
+                    msg_content = normalize_media_key(msg_content, action_type)
                 msg_id = str(uuid.uuid4())
                 timestamp = datetime.now().isoformat()
                 
