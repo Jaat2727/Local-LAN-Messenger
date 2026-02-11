@@ -360,6 +360,7 @@ os.makedirs(THUMB_DIR, exist_ok=True)
 
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 app.mount("/thumbs", StaticFiles(directory=THUMB_DIR), name="thumbs")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 DB_NAME = "chatter.db"
 
