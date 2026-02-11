@@ -27,6 +27,8 @@ A real-time LAN messenger with WhatsApp-style features including **voice/video c
     - **HTTP (Local Only)**: Double-click `start_server.bat`
     - **HTTPS (Network/Mobile)**: Double-click `start_https_server.bat` (Recommended for calls)
 
+> Windows scripts are also organized in `scripts/windows/` for easier maintenance.
+
 ### 🍎 macOS / 🐧 Linux
 
 1.  **Open Terminal** in the project folder (or just double-click the files on macOS).
@@ -34,13 +36,17 @@ A real-time LAN messenger with WhatsApp-style features including **voice/video c
     - **HTTP**: Double-click `start_server_mac.command`
     - **HTTPS**: Double-click `start_https_server_mac.command`
 
+> Unix scripts are also organized in `scripts/unix/` (`start_server.sh`, `start_https_server.sh`).
+
     _Note: If you can't double-click, run `chmod +x _.command` in terminal first.\*
 
 ---
 
 ## 📡 Accessing the App
 
-Once the server is running, use the links provided in the terminal:
+Once the server is running, use the links provided in the terminal.
+
+The launch scripts automatically detect your **current active network IP** and print a shareable LAN URL with the configured port.
 
 | Mode                | URL Format              | Features Support                          |
 | ------------------- | ----------------------- | ----------------------------------------- |
@@ -54,12 +60,16 @@ Once the server is running, use the links provided in the terminal:
 ## 🛠️ Project Structure
 
 - `main.py`: Main FastAPI backend application.
-- `index.html`: Frontend application logic.
+- `index.html`: Frontend markup shell.
+- `static/css/app.css`: Main frontend styles.
+- `static/js/app.js`: Main frontend behavior and WebRTC/call logic.
 - `requirements.txt`: Python dependencies.
-- `start_server.bat`: Windows HTTP launcher.
-- `start_https_server.bat`: Windows HTTPS launcher (generates SSL).
-- `start_server_mac.command`: macOS HTTP launcher.
-- `start_https_server_mac.command`: macOS HTTPS launcher.
+- `start_server.bat`: Windows HTTP launcher entrypoint.
+- `start_https_server.bat`: Windows HTTPS launcher entrypoint.
+- `start_server_mac.command`: macOS/Linux HTTP launcher entrypoint.
+- `start_https_server_mac.command`: macOS/Linux HTTPS launcher entrypoint.
+- `scripts/windows/`: Platform-specific Windows startup scripts.
+- `scripts/unix/`: Platform-specific Unix startup scripts.
 - `uploaded_media/`: Stores shared files.
 - `chatter.db`: SQLite database for messages and users.
 
